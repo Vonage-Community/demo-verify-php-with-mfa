@@ -1,0 +1,7 @@
+{% block alerts %}
+    <div class="alert alert-info {{ (info is null) ? 'd-none' : '' }}" id="info" role="alert">{{ info }}</div>
+
+    <div class="alert alert-danger {{ (msg is null) ? 'd-none' : '' }}" id="msg" role="alert">{{ msg }}</div>
+
+    <div class="alert alert-success {{ (success is null) ? 'd-none' : '' }}" id="success" role="alert">{{ success }}</div>
+{% endblock %}

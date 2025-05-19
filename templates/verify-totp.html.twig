@@ -1,0 +1,17 @@
+{% extends "base.html.twig" %}
+{% block title %}Setp TOTP{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-4">
+                {% include 'totp.html.twig' %}
+            </div>
+        </div>
+    </section>
+{% endblock %}
+

@@ -1,0 +1,26 @@
+{% extends "base.html.twig" %}
+{% block title %}Setp TOTP{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-4">
+                <h1 class="col">Register web-auth</h1>
+
+                {% include 'alerts.html.twig' %}
+
+                <button class="btn btn-primary register-web-auth">Register Key</button>
+
+                {% include 'webauth.html.twig' %}
+
+                <div class="mb-3 align-self-center">
+                    <p>Register your key</p>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

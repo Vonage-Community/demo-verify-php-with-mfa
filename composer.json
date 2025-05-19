@@ -1,0 +1,20 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "autoload": {
+        "psr-4": {
+            "Vonage\\Security\\": "src/"
+        }
+    },
+    "require": {
+        "slim/slim": "^4.14",
+        "httpsoft/http-message": "^1.1",
+        "httpsoft/http-server-request": "^1.1",
+        "slim/twig-view": "^3.4",
+        "vonage/client": "^4.1",
+        "robthree/twofactorauth": "^3.0",
+        "endroid/qr-code": "^3.0",
+        "bacon/bacon-qr-code": "^2.0",
+        "php-di/php-di": "^7.0",
+        "madwizard/webauthn": "^1.0"
+    }
+}

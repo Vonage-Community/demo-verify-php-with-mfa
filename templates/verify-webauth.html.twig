@@ -1,0 +1,36 @@
+{% extends "base.html.twig" %}
+{% block title %}Setp TOTP{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-4">
+                <h1>Use Your key to verify</h1>
+
+                {% include 'alerts.html.twig' %}
+
+                {% include 'webauth.html.twig' %}
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await verify();
+                window.location = `/profile?success=${encodeURI('Key verified')}`
+            } catch (error) {
+                console.error(error);
+                msg.classList.remove('d-none')
+                msg.innerHTML = 'Validation failed'
+            }
+        });
+    </script>
+{% endblock %}

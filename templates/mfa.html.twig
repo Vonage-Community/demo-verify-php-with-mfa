@@ -1,0 +1,33 @@
+{% extends "base.html.twig" %}
+{% block title %}MFA{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container">
+        <div class="row align-items-center">
+            <h3 class="justify-items-center">2-Step Verification</h3>
+
+            {% include 'alerts.html.twig' %}
+
+            <p>Select your method</p>
+
+            <div class="list-group ">
+                <a href="/verify" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">SMS Verification code</h5>
+                    <p class="mb-1">Get a verification code at your registered number.</p>
+                </a>
+                <a href="/totp" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">Use TOTP</h5>
+                    <p class="mb-1">Use code from Authenticator App.</p>
+                </a>
+                <a href="/web-auth" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">Use your Security Key</h5>
+                    <p class="mb-1">Use You Security Key.</p>
+                </a>
+            </div>
+        </div>
+    </section>
+{% endblock %}

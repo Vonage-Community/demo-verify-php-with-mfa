@@ -1,0 +1,112 @@
+{% extends "base.html.twig" %}
+{% block title %}Verify{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <form class="col-4" method="post">
+                <h1>Verify with SMS</h1>
+
+                {% include 'alerts.html.twig' %}
+
+                <div class="mb-3">
+                    <label for="code" class="form-label">Ender Code</label>
+                    <input type="text" class="form-control" id="code" name="code" disabled>
+                    <small class="form-text">You need to press "Start" before you can enter the code</small>
+                </div>
+
+                <button class="btn btn-primary start-verify">Start</button>
+                <button class="btn btn-primary verify-code" id="verify" disabled>Verify</button>
+            </form>
+        </div>
+    </section>
+{% endblock %}
+{% block scripts %}
+    <script>
+        const apiHost = window.location.origin;
+        let requestId;
+        const startVerify = () => {
+            console.log('Starting verify')
+            msg.classList.add('d-none');
+            fetch(
+                `${apiHost}/start-verify`,
+                {
+                    method: 'POST',
+                }
+            ).then(async (response) => {
+                const result  = await response.json();
+                requestId = result['request_id'];
+                verify.disabled = false;
+                code.disabled = false;
+            })
+        };
+
+        const verifyCode = (code) => {
+            const headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            console.log('Verify Code')
+            fetch(
+                `${apiHost}/verify-code`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        code: code,
+                        requestId: requestId,
+                    }),
+                    headers: headers,
+                }
+            ).then(async (res) => {
+                console.log('check complete')
+                console.log(res);
+                if (res.status === 200) {
+                    window.location = '/profile?success=' + encodeURI('You have been verified');
+                    return;
+                }
+
+                const { error  } = await res.json();
+                verify.disabled = false;
+                verify.classList.remove('disabled');
+                msg.classList.remove('d-none');
+                msg.innerHTML = error;
+            }).catch((e) => {
+                console.log('I am error');
+                console.error(e);
+            }).finally(() => {
+                console.log('End of line');
+            })
+        };
+
+        const handelButtonClickEvent = (event) => {
+            const {target} = event;
+
+            // Handle web components
+            if (target.tagName.includes('-')) {
+                return;
+            }
+
+            if (target.tagName === 'A' || target.tagName === 'INPUT') {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (target.classList.contains('start-verify')) {
+                target.classList.add('disabled')
+                startVerify()
+            }
+
+            if (target.classList.contains('verify-code')) {
+                target.classList.add('disabled')
+                verifyCode(code.value);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('click', handelButtonClickEvent);
+        });
+    </script>
+{% endblock %}

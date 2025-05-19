@@ -1,0 +1,36 @@
+{% extends "base.html.twig" %}
+{% block title %}Register User{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <form class="col-4" method="post" action="/register">
+                <h1>Register User</h1>
+
+                {% include 'alerts.html.twig' %}
+
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username">
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password">
+                </div>
+
+                <label for="user-phone" class="form-label">Phone number</label>
+                <div class="input-group mb-3">
+                    <span class="input-group-text">🇺🇸 +1</span>
+                    <input type="text" class="form-control" id="user-phone" name="phone">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+    </section>
+{% endblock %}

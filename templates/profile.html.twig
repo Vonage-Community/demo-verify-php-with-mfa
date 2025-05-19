@@ -1,0 +1,30 @@
+{% extends "base.html.twig" %}
+{% block title %}Profile{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-7">
+                <h1>
+                    Profile
+                    <a class="mx-2 float-end btn btn-primary" href="/web-auth-register">Register WebAuthZ</a>
+                    <a class="mx-2 float-end btn btn-primary" href="/register-totp">Register TOTP</a>
+                </h1>
+
+                {% include 'alerts.html.twig' %}
+
+                <dl>
+                    <dt>Username:</dt>
+                    <dd>{{ user.username }}</dd>
+
+                    <dt>Phone:</dt>
+                    <dd>{{ user.phone }}</dd>
+                </dl>
+            </div>
+        </div>
+    </section>
+{% endblock %}

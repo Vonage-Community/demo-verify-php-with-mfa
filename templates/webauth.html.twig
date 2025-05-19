@@ -1,0 +1,186 @@
+{% block scripts %}
+    <script>
+        if (!fetch || !navigator.credentials || !navigator.credentials.create) {
+            alert('Your browser does not support web-auth keys')
+        }
+
+        const base64encode = (arraybuffer) =>{
+            const buffer = new Uint8Array(arraybuffer);
+            let binary = '';
+            for (let i = 0; i < buffer.length; i++) {
+                binary += String.fromCharCode(buffer[i]);
+            }
+            let encoded = window.btoa(binary);
+
+            let i = encoded.length - 1;
+            while (i > 0 && encoded[i] === '=') {
+                i--;
+            }
+            encoded = encoded.slice(0, i + 1);
+            encoded = encoded.replace(/\+/g, '-').replace(/\//g, '_');
+
+            return encoded;
+        }
+
+        const base64decode = (base64) => {
+            let converted = base64.replace(/-/g, '+').replace(/_/g, '/');
+
+            switch (converted.length % 4) {
+                case 2:
+                    converted += '==';
+                    break;
+                case 3:
+                    converted += '=';
+                    break;
+                case 1:
+                    throw new Error('parse-error');
+                default:
+                    break;
+            }
+
+            const bin = window.atob(converted);
+
+            const buffer = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) {
+                buffer[i] = bin.charCodeAt(i);
+            }
+
+            return buffer;
+        }
+
+        const apiHost = window.location.origin;
+
+        const fetchCreateArgs = async () => {
+            try {
+                const createArgs = await fetch(
+                    `${apiHost}/register-web-auth`,
+                    {
+                        method: 'GET',
+                    }
+                ).then((res) => res.json());
+
+                createArgs.user.id = base64decode(createArgs.user.id);
+                createArgs.challenge = base64decode(createArgs.challenge);
+
+                return createArgs;
+            } catch (error) {
+                console.error(error);
+                msg.classlist.remove('d-none')
+                msg.innerHTML = 'Failed to fetch credential options';
+            }
+        };
+
+        const register = async () => {
+            try {
+                const createArgs = await fetchCreateArgs();
+                const creds = await navigator.credentials.create({
+                    publicKey: createArgs
+                });
+
+                const credData = {
+                    type: creds.type,
+                    id: creds.id,
+                    rawId: base64encode(creds.rawId),
+                    extensions: creds.getClientExtensionResults(),
+                    response: {
+                        attestationObject: base64encode(creds.response.attestationObject),
+                        clientDataJSON: base64encode(creds.response.clientDataJSON),
+                        transports: creds.response.getTransports()
+                    }
+                };
+
+                const headers = new Headers();
+                headers.append('Content-Type', 'application/json');
+                const res = await fetch(
+                    `${apiHost}/register-web-auth`,
+                    {
+                        method: 'POST',
+                        body: JSON.stringify(credData),
+                        headers: headers,
+                    }
+                );
+
+                if (res.status === 200) {
+                    window.location = `/profile?success=${encodeURI('WebAuth Key registered')}`
+                    return;
+                }
+
+                const { error  } = await res.json();
+                msg.classList.remove('d-none');
+                msg.innerHTML = error;
+            } catch (error) {
+                console.error(error);
+                msg.classList.remove('d-none')
+                msg.innerHTML = 'Failed to register Key'
+            }
+        };
+
+        const verify = async () => {
+            const verifyArgs = await fetch(
+                `${apiHost}/auth-web-auth`,
+                {
+                    method: 'GET',
+                    cache: "no-cache",
+                }
+            ).then((res) => res.json());
+
+            verifyArgs.challenge = base64decode(verifyArgs.challenge);
+            verifyArgs.allowCredentials = verifyArgs.allowCredentials.map((allowed) => ({
+                type: allowed.type,
+                transports: allowed.transports,
+                id: base64decode(allowed.id),
+            }));
+
+            const challenge = await navigator.credentials.get({
+                publicKey: verifyArgs
+            });
+
+            challenge.rawId = base64encode(challenge.rawId);
+            challenge.response = {
+                clientDataJSON: base64encode(challenge.response.clientDataJSON),
+                authenticatorData: base64encode(challenge.response.authenticatorData),
+                signature: base64encode(challenge.response.signature),
+                userHandle: base64encode(challenge.response.userHandle),
+            }
+
+            const headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            await fetch(
+                `${apiHost}/auth-web-auth`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify(challenge),
+                    headers: headers,
+                }
+            )
+        }
+
+        const handelButtonClickEvent = (event) => {
+            const {target} = event;
+
+            // Handle web components
+            if (target.tagName.includes('-')) {
+                return;
+            }
+
+            if (target.tagName === 'A' || target.tagName === 'INPUT') {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (target.classList.contains('register-web-auth')) {
+                register();
+            }
+
+            if (target.classList.contains('verify-web-auth')) {
+                verify();
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('click', handelButtonClickEvent);
+        });
+    </script>
+{% endblock %}
+

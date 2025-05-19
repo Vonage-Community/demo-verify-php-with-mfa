@@ -1,0 +1,24 @@
+{% extends "base.html.twig" %}
+{% block title %}Setp TOTP{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+{% endblock %}
+
+{% block content %}
+    <section class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-4">
+                <h1 class="col">Setup TOTP</h1>
+
+                <div class="mb-3 align-self-center">
+                    <p>Scan the following image with your App</p>
+                    <img src="{{ img }}" alt="The QR Code to scan with your TOTP app">
+                </div>
+
+                {% include 'totp.html.twig' %}
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
