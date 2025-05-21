@@ -51,7 +51,7 @@ class VerifyRouter
             $phone = sprintf("+1%s", $user->phone);
             $smsRequest = new SMSRequest(
                 $phone,
-                'PHPTek'
+                getenv('BRAND')
             );
 
             $smsRequest->setTimeout(15);

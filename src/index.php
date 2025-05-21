@@ -34,7 +34,7 @@ $app->addErrorMiddleware(true, true, true);
 $client = new Client(
     new Keypair(
         file_get_contents(__DIR__ . '/../private.key'),
-        'b787e68f-bcca-4944-a976-7d6c362974e6'
+        getenv('VONAGE_APPLICATION_ID')
     )
 );
 $container->set(Client::class, $client);

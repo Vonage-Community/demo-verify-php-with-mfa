@@ -53,7 +53,7 @@
         const fetchCreateArgs = async () => {
             try {
                 const createArgs = await fetch(
-                    `${apiHost}/register-web-auth`,
+                    `${apiHost}/web-auth-register`,
                     {
                         method: 'GET',
                     }
@@ -65,8 +65,8 @@
                 return createArgs;
             } catch (error) {
                 console.error(error);
-                msg.classlist.remove('d-none')
-                msg.innerHTML = 'Failed to fetch credential options';
+               // msg.classlist.remove('d-none')
+                //msg.innerHTML = 'Failed to fetch credential options';
             }
         };
 
@@ -92,7 +92,7 @@
                 const headers = new Headers();
                 headers.append('Content-Type', 'application/json');
                 const res = await fetch(
-                    `${apiHost}/register-web-auth`,
+                    `${apiHost}/web-auth-register`,
                     {
                         method: 'POST',
                         body: JSON.stringify(credData),
@@ -106,12 +106,12 @@
                 }
 
                 const { error  } = await res.json();
-                msg.classList.remove('d-none');
-                msg.innerHTML = error;
+                ////msg.classList.remove('d-none');
+                //msg.innerHTML = error;
             } catch (error) {
                 console.error(error);
-                msg.classList.remove('d-none')
-                msg.innerHTML = 'Failed to register Key'
+                //msg.classList.remove('d-none')
+                //msg.innerHTML = 'Failed to register Key'
             }
         };
 
