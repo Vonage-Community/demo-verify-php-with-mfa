@@ -31,7 +31,7 @@ function b64urlDecode(base64) {
   switch (converted.length % 4) {
     case 2: converted += '=='; break;
     case 3: converted += '='; break;
-    case 1: throw new Error('Invalid base64url string');
+    case 1: throw new Error('Invalid base64url string: length modulo 4 cannot be 1');
   }
   const bin = atob(converted);
   const buffer = new Uint8Array(bin.length);
@@ -377,7 +377,10 @@ function initVerifyDemo() {
 
   checkBtn.addEventListener('click', async () => {
     const code = codeInput.value.trim();
-    if (!code) { showResult(resultEl, 'error', 'Enter the code from your SMS.'); return; }
+    if (!code) {
+      showResult(resultEl, 'error', 'Enter the code from your SMS.');
+      return;
+    }
     checkBtn.disabled = true;
     showResult(resultEl, 'loading', '⏳ Checking code…');
     try {
@@ -427,7 +430,10 @@ function initTOTPDemo() {
 
   verifyBtn.addEventListener('click', async () => {
     const code = codeInput.value.trim();
-    if (!code) { showResult(resultEl, 'error', 'Enter the 6-digit code from your authenticator.'); return; }
+    if (!code) {
+      showResult(resultEl, 'error', 'Enter the 6-digit code from your authenticator.');
+      return;
+    }
     verifyBtn.disabled = true;
     showResult(resultEl, 'loading', '⏳ Verifying TOTP code…');
     try {
