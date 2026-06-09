@@ -1,16 +1,48 @@
-<form method="post" class="mb-3">
+<section class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-4">
+          <form method="post" class="mb-3">
+              <div class="mb-3">
+                  <label for="code" class="form-label">Ender your OTP</label>
+                  <input type="text" class="form-control" id="code" name="code">
+              </div>
 
-    <div class="mb-3">
-        <label for="code" class="form-label">Ender your OTP</label>
-        <input type="text" class="form-control" id="code" name="code">
+              <button type="submit" class="btn btn-primary verify-code">Verify</button>
+
+              {% include 'alerts.html.twig' %}
+          </form>
+        </div>
+      </div>
+</section>
+
+<section class="container-fluid ">
+  <div class="row justify-content-center">
+    <div class="col-4">
+      <pre><code class="language-php">
+
+// Generate Secret
+$tfa = new TwoFactorAuth(new BaconQrCodeProvider());
+$user = UserService::getUser();
+
+$user->setSecret($tfa->createSecret());
+UserService::save($user);
+
+$qrImage = $tfa->getQRCodeImageAsDataUri(
+  $user->username,
+  $user->secret,
+);
+
+
+// Validate 
+$tfa->verifyCode($userSecret, $code);
+      </code></pre>
     </div>
 
-    <button type="submit" class="btn btn-primary verify-code">Verify</button>
-
-    {% include 'alerts.html.twig' %}
-</form>
-
-<console-logger><console-logger/>
+    <div class="col-4">
+      <console-logger><console-logger/>
+    </div>
+  </div>
+</section>
 
 {% block scripts %}
     <script>
@@ -18,7 +50,7 @@
         const verifyCode = (code) => {
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
-            console.log('Verify TOTP')
+            console.log('Verify TOTP', {code: code})
             msg.classList.add('d-none')
             success.classList.add('d-none')
             fetch(
@@ -32,13 +64,17 @@
                 }
             ).then(async (res) => {
                 if (res.status === 200) {
-                    window.location = `/profile?success=${encodeURI('OTP verified')}`
+                    console.log('Code Verified')
+                    setTimeout(() => {
+                      window.location = `/profile?success=${encodeURI('OTP verified')}`
+                    }, 2000)
                     return;
                 }
 
                 const { error  } = await res.json();
                 msg.classList.remove('d-none');
                 msg.innerHTML = error;
+                throw error;
             }).catch((e) => {
                 console.error(e);
             })
@@ -53,7 +89,6 @@
             }
 
             if (target.tagName === 'A' || target.tagName === 'INPUT') {
-                console.log('Link clicked');
                 return;
             }
 
