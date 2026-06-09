@@ -9,7 +9,6 @@
     <body class="d-flex flex-column">
         <nav class="navbar navbar-dark navbar-expand-lg bg-dark mb-4">
             <div class="container-fluid">
-                <img class="navbar-brand" id="logo" src="img/VonageLogo_Primary_White.png" alt="vonage">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link" href="/register">Register</a>
@@ -28,5 +27,18 @@
 
     </body>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script src="assets/js/console-log.js"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/default.min.css">
+<script type="module">
+import hljs from 'https://unpkg.com/@highlightjs/cdn-assets@11.9.0/es/highlight.min.js';
+import javascript from 'https://unpkg.com/@highlightjs/cdn-assets@11.9.0/es/languages/javascript.min.js';
+import php from 'https://unpkg.com/@highlightjs/cdn-assets@11.9.0/es/languages/php.min.js';
+// import 'https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/github.css';
+
+hljs.registerLanguage('php', php);
+hljs.registerLanguage('javascript', javascript);
+hljs.highlightAll();
+</script>
     {% block scripts %} {% endblock %}
 </html>

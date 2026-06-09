@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 use DI\Container;
@@ -7,6 +8,8 @@ use RobThree\Auth\TwoFactorAuth;
 use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
 use Slim\Views\TwigMiddleware;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 use Vonage\Client;
 use Vonage\Client\Credentials\Keypair;
 use Vonage\Security\WebAuthRouter;
@@ -32,10 +35,10 @@ $app->addErrorMiddleware(true, true, true);
 
 //Create Vonage client
 $client = new Client(
-    new Keypair(
-        file_get_contents(__DIR__ . '/../private.key'),
-        getenv('VONAGE_APPLICATION_ID')
-    )
+  new Keypair(
+    file_get_contents(__DIR__ . '/../private.key'),
+    getenv('VONAGE_APPLICATION_ID')
+  )
 );
 $container->set(Client::class, $client);
 
@@ -82,4 +85,34 @@ $app->get('/web-auth-register', [WebAuthRouter::class, 'startRegistration']);
 $app->post('/web-auth-register', [WebAuthRouter::class, 'completeRegistration']);
 $app->get('/auth-web-auth', [WebAuthRouter::class, 'startAuthentication']);
 $app->post('/auth-web-auth', [WebAuthRouter::class, 'completeAuthentication']);
+
+$app->get('/{file}', function (Request $request, Response $response, $args) {
+  $filePath = __DIR__ . '/' . $args['file'];
+
+  if (!file_exists($filePath)) {
+    return $response->withStatus(404, 'File Not Found');
+  }
+
+  switch (pathinfo($filePath, PATHINFO_EXTENSION)) {
+    case 'css':
+      $mimeType = 'text/css';
+      break;
+
+    case 'js':
+      $mimeType = 'application/javascript';
+      break;
+
+    // Add more supported mime types per file extension as you need here
+
+    default:
+      $mimeType = 'text/html';
+  }
+
+  $newResponse = $response->withHeader('Content-Type', $mimeType . '; charset=UTF-8');
+
+  $newResponse->getBody()->write(file_get_contents($filePath));
+
+  return $newResponse;
+});
+
 $app->run();

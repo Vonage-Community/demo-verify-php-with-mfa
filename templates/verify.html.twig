@@ -6,28 +6,70 @@
 {% endblock %}
 
 {% block content %}
-    <section class="container-fluid">
-        <div class="row justify-content-center">
-            <form class="col-4" method="post">
-                <h1>Verify with SMS</h1>
+  <section class="container-fluid mb-5">
+     <div class="row justify-content-center">
+       <form class="col-4" method="post">
+         <h1>Verify with SMS</h1>
 
-                {% include 'alerts.html.twig' %}
+         {% include 'alerts.html.twig' %}
 
-                <div class="mb-3">
-                    <label for="code" class="form-label">Ender Code</label>
-                    <input type="text" class="form-control" id="code" name="code" disabled>
-                    <small class="form-text">You need to press "Start" before you can enter the code</small>
-                </div>
+         <div class="mb-3">
+           <label for="code" class="form-label">Ender Code</label>
+           <input type="text" class="form-control" id="code" name="code" disabled>
+           <small class="form-text">You need to press "Start" before you can enter the code</small>
+         </div>
 
-                <button class="btn btn-primary start-verify">Start</button>
-                <button class="btn btn-primary verify-code" id="verify" disabled>Verify</button>
-            </form>
-        </div>
-    </section>
+         <button class="btn btn-primary start-verify">Start</button>
+         <button class="btn btn-primary verify-code" id="verify" disabled>Verify</button>
+       </form>
+     </div>
+  </section>
+
+  <section class="container-fluid ">
+    <div class="row justify-content-center">
+      <div class="col-4" id="start-verify">
+        <pre><code class="language-php">
+$client = new Vonage\Client(
+  new Vonage\Client\Credentials\Keypair(
+    file_get_contents(__DIR__ . '/../private.key'),
+    getenv('VONAGE_APPLICATION_ID')
+  )
+);
+
+$smsRequest = new Vonage\Verify2\Request\SMSRequest(
+    $phone,
+    getenv('BRAND')
+);
+
+$smsRequest->setTimeout(15);
+$result = $client
+  ->verify2()
+  ->startVerification($smsRequest);
+        </code></pre>
+      </div>
+
+      <div class="col-4 d-none" id="confirm-verify">
+        <pre><code class="language-php">
+$client->verify2()
+   ->check(
+     $requestBody->requestId,
+     $requestBody->code,
+   );
+        </code></pre>
+      </div>
+
+      <div class="col-4">
+        <console-logger><console-logger/>
+      </div>
+    </div>
+  </section>
+
 {% endblock %}
 {% block scripts %}
     <script>
         const apiHost = window.location.origin;
+        const startEl = document.getElementById('start-verify');
+        const confirmEl = document.getElementById('confirm-verify');
         let requestId;
         const startVerify = () => {
             console.log('Starting verify')
@@ -42,13 +84,22 @@
                 requestId = result['request_id'];
                 verify.disabled = false;
                 code.disabled = false;
+                console.log('Verifcation started', result)
             })
+            startEl.classList.add('d-none')
+            confirmEl.classList.remove('d-none')
         };
 
         const verifyCode = (code) => {
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
-            console.log('Verify Code')
+            console.log(
+              'Verifying Code', 
+              {
+                  code: code,
+                  requestId: requestId,
+              },
+            );
             fetch(
                 `${apiHost}/verify-code`,
                 {
@@ -60,10 +111,12 @@
                     headers: headers,
                 }
             ).then(async (res) => {
-                console.log('check complete')
-                console.log(res);
+                console.log('Check complete')
                 if (res.status === 200) {
-                    window.location = '/profile?success=' + encodeURI('You have been verified');
+                    console.log('Correct code entered');
+                    setTimeout(() => {
+                      window.location = '/profile?success=' + encodeURI('You have been verified');
+                    }, 2000);
                     return;
                 }
 
@@ -73,10 +126,7 @@
                 msg.classList.remove('d-none');
                 msg.innerHTML = error;
             }).catch((e) => {
-                console.log('I am error');
                 console.error(e);
-            }).finally(() => {
-                console.log('End of line');
             })
         };
 
