@@ -65,9 +65,6 @@ $tfa->verifyCode($userSecret, $code);
             ).then(async (res) => {
                 if (res.status === 200) {
                     console.log('Code Verified')
-                    setTimeout(() => {
-                      window.location = `/profile?success=${encodeURI('OTP verified')}`
-                    }, 2000)
                     return;
                 }
 

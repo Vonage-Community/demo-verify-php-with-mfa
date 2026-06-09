@@ -1,7 +1,7 @@
 const LEVELS = {
-  log:   { label: 'log',   color: '#e2e8f0' },
-  info:  { label: 'info',  color: '#60a5fa' },
-  warn:  { label: 'warn',  color: '#fbbf24' },
+  log: { label: 'log', color: '#e2e8f0' },
+  info: { label: 'info', color: '#60a5fa' },
+  warn: { label: 'warn', color: '#fbbf24' },
   error: { label: 'error', color: '#f87171' },
   debug: { label: 'debug', color: '#a78bfa' },
   count: { label: 'count', color: '#34d399' },
@@ -199,7 +199,6 @@ class ConsoleLogger extends HTMLElement {
 
         .output {
           min-height: 6rem;
-          max-height: 16rem;
           overflow-y: auto;
           padding: 0.5rem 0;
         }

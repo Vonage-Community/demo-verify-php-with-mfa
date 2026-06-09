@@ -51,6 +51,7 @@
         const apiHost = window.location.origin;
 
         const fetchCreateArgs = async () => {
+          console.log('Fetching Credentials')
             try {
                 const createArgs = await fetch(
                     `${apiHost}/web-auth-register`,
@@ -59,14 +60,15 @@
                     }
                 ).then((res) => res.json());
 
+                console.log('Credentials', {
+                  ...createArgs,
+                })
                 createArgs.user.id = base64decode(createArgs.user.id);
                 createArgs.challenge = base64decode(createArgs.challenge);
 
                 return createArgs;
             } catch (error) {
                 console.error(error);
-               // msg.classlist.remove('d-none')
-                //msg.innerHTML = 'Failed to fetch credential options';
             }
         };
 
@@ -88,9 +90,11 @@
                         transports: creds.response.getTransports()
                     }
                 };
+                console.log('Registering key', credData);
 
                 const headers = new Headers();
                 headers.append('Content-Type', 'application/json');
+
                 const res = await fetch(
                     `${apiHost}/web-auth-register`,
                     {
@@ -101,21 +105,18 @@
                 );
 
                 if (res.status === 200) {
-                    window.location = `/profile?success=${encodeURI('WebAuth Key registered')}`
+                    console.log('Key Registered')
                     return;
                 }
 
                 const { error  } = await res.json();
-                ////msg.classList.remove('d-none');
-                //msg.innerHTML = error;
             } catch (error) {
                 console.error(error);
-                //msg.classList.remove('d-none')
-                //msg.innerHTML = 'Failed to register Key'
             }
         };
 
         const verify = async () => {
+            console.log('Fetching verification args')
             const verifyArgs = await fetch(
                 `${apiHost}/auth-web-auth`,
                 {
@@ -123,6 +124,8 @@
                     cache: "no-cache",
                 }
             ).then((res) => res.json());
+
+            console.log('Verify Args', verifyArgs)
 
             verifyArgs.challenge = base64decode(verifyArgs.challenge);
             verifyArgs.allowCredentials = verifyArgs.allowCredentials.map((allowed) => ({
@@ -134,6 +137,8 @@
             const challenge = await navigator.credentials.get({
                 publicKey: verifyArgs
             });
+
+            console.log('Challenge', challenge);
 
             challenge.rawId = base64encode(challenge.rawId);
             challenge.response = {
@@ -152,7 +157,9 @@
                     body: JSON.stringify(challenge),
                     headers: headers,
                 }
-            )
+            ).then(()=>{
+              console.log('Challenge Accepted')
+            })
         }
 
         const handelButtonClickEvent = (event) => {

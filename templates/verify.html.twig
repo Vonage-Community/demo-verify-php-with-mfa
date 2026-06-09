@@ -14,7 +14,7 @@
          {% include 'alerts.html.twig' %}
 
          <div class="mb-3">
-           <label for="code" class="form-label">Ender Code</label>
+           <label for="code" class="form-label">Enter Code</label>
            <input type="text" class="form-control" id="code" name="code" disabled>
            <small class="form-text">You need to press "Start" before you can enter the code</small>
          </div>
@@ -27,7 +27,7 @@
 
   <section class="container-fluid ">
     <div class="row justify-content-center">
-      <div class="col-4" id="start-verify">
+      <div class="col-6" id="start-verify">
         <pre><code class="language-php">
 $client = new Vonage\Client(
   new Vonage\Client\Credentials\Keypair(
@@ -48,7 +48,7 @@ $result = $client
         </code></pre>
       </div>
 
-      <div class="col-4 d-none" id="confirm-verify">
+      <div class="col-6 d-none" id="confirm-verify">
         <pre><code class="language-php">
 $client->verify2()
    ->check(
@@ -58,7 +58,7 @@ $client->verify2()
         </code></pre>
       </div>
 
-      <div class="col-4">
+      <div class="col-6">
         <console-logger><console-logger/>
       </div>
     </div>
@@ -114,9 +114,6 @@ $client->verify2()
                 console.log('Check complete')
                 if (res.status === 200) {
                     console.log('Correct code entered');
-                    setTimeout(() => {
-                      window.location = '/profile?success=' + encodeURI('You have been verified');
-                    }, 2000);
                     return;
                 }
 
@@ -155,6 +152,7 @@ $client->verify2()
                 verifyCode(code.value);
             }
         }
+
         document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('click', handelButtonClickEvent);
         });

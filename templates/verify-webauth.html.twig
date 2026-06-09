@@ -17,6 +17,58 @@
             </div>
         </div>
     </section>
+
+<section class="container-fluid ">
+  <div class="row justify-content-center">
+    <div class="col-6">
+      <pre><code class="language-javascript">
+const verify = async () => {
+    const verifyArgs = await fetch(
+        `${apiHost}/auth-web-auth`,
+        {
+            method: 'GET',
+            cache: "no-cache",
+        }
+    ).then((res) => res.json());
+
+    verifyArgs.challenge = base64decode(verifyArgs.challenge);
+    verifyArgs.allowCredentials = verifyArgs.allowCredentials.map((allowed) => ({
+        type: allowed.type,
+        transports: allowed.transports,
+        id: base64decode(allowed.id),
+    }));
+
+    const challenge = await navigator.credentials.get({
+        publicKey: verifyArgs
+    });
+
+    challenge.rawId = base64encode(challenge.rawId);
+    challenge.response = {
+        clientDataJSON: base64encode(challenge.response.clientDataJSON),
+        authenticatorData: base64encode(challenge.response.authenticatorData),
+        signature: base64encode(challenge.response.signature),
+        userHandle: base64encode(challenge.response.userHandle),
+    }
+
+    const headers = new Headers();
+    headers.append('Content-Type', 'application/json');
+    await fetch(
+        `${apiHost}/auth-web-auth`,
+        {
+            method: 'POST',
+            body: JSON.stringify(challenge),
+            headers: headers,
+        }
+    )
+}
+      </code></pre>
+    </div>
+
+    <div class="col-6">
+      <console-logger><console-logger/>
+    </div>
+  </div>
+</section>
 {% endblock %}
 
 
@@ -25,7 +77,6 @@
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await verify();
-                window.location = `/profile?success=${encodeURI('Key verified')}`
             } catch (error) {
                 console.error(error);
                 msg.classList.remove('d-none')

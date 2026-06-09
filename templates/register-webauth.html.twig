@@ -1,5 +1,5 @@
 {% extends "base.html.twig" %}
-{% block title %}Setp TOTP{% endblock %}
+{% block title %}Setup WebAuthN{% endblock %}
 
 {% block head %}
     {{ parent() }}
@@ -23,4 +23,56 @@
             </div>
         </div>
     </section>
+
+<section class="container-fluid ">
+  <div class="row justify-content-center">
+    <div class="col-6" id="start">
+      <pre><code class="language-javascript">
+
+const base64decode = (base64) => {
+    let converted = base64.replace(/-/g, '+').replace(/_/g, '/');
+
+    switch (converted.length % 4) {
+        case 2:
+            converted += '==';
+            break;
+        case 3:
+            converted += '=';
+            break;
+        case 1:
+            throw new Error('parse-error');
+        default:
+            break;
+    }
+
+    const bin = window.atob(converted);
+
+    const buffer = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+        buffer[i] = bin.charCodeAt(i);
+    }
+
+    return buffer;
+}
+
+const register = async () => {
+  const createArgs = await fetch(
+    `https://myhost.com/web-auth-register`,
+    {
+        method: 'GET',
+    }
+  ).then((res) => res.json());
+
+  const creds = await navigator.credentials.create({
+      publicKey: createArgs
+  });
+});
+      </code></pre>
+    </div>
+
+    <div class="col-6">
+      <console-logger><console-logger/>
+    </div>
+  </div>
+</section>
 {% endblock %}
