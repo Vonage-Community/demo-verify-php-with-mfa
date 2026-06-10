@@ -33,6 +33,23 @@ AppFactory::setContainer($container);
 $app = AppFactory::create();
 $app->addErrorMiddleware(true, true, true);
 
+// CORS support for development — set CORS_ORIGIN env to the presentation origin
+// e.g. CORS_ORIGIN=http://localhost:5173
+$corsOrigin = getenv('CORS_ORIGIN');
+if ($corsOrigin) {
+    $app->options('/{routes:.+}', function ($request, $response) {
+        return $response;
+    });
+    $app->add(function ($request, $handler) use ($corsOrigin) {
+        $response = $handler->handle($request);
+        return $response
+            ->withHeader('Access-Control-Allow-Origin', $corsOrigin)
+            ->withHeader('Access-Control-Allow-Credentials', 'true')
+            ->withHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+            ->withHeader('Access-Control-Allow-Headers', 'Content-Type');
+    });
+}
+
 //Create Vonage client
 $client = new Client(
   new Keypair(

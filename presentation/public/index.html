@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <title>Securing PHP Apps with MFA — Vonage Verify, TOTP &amp; WebAuthn</title>
+
+  <!-- Google Fonts (Montserrat + Roboto — same faces as the Vonage theme) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&family=Roboto:wght@300;400&display=swap" rel="stylesheet" />
+
+  <link href="css/styles.css" rel="stylesheet" />
+  <link href="css/theme.css" rel="stylesheet" />
+  <link href="css/demo.css" rel="stylesheet" />
+</head>
+
+<body>
+
+  <!-- Animated floating-circles background (from the shadow-dom talk) -->
+  <ul class="circles">
+    <li></li><li></li><li></li><li></li><li></li>
+    <li></li><li></li><li></li><li></li><li></li>
+  </ul>
+
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ============================================================
+           1. TITLE
+           ============================================================ -->
+      <section class="title">
+        <h1>Securing PHP with MFA</h1>
+        <h3>Vonage Verify v2 &middot; TOTP &middot; WebAuthn</h3>
+        <h5>Chuck &ldquo;MANCHUCK&rdquo; Reeves</h5>
+        <h5>Senior Developer Advocate @ Vonage</h5>
+      </section>
+
+
+      <!-- ============================================================
+           2. WHAT IS MFA?
+           ============================================================ -->
+      <section class="what-is-mfa">
+        <h2>What is MFA?</h2>
+
+        <section>
+          <blockquote>
+            &ldquo;Multi-Factor Authentication requires users to verify their identity using
+            two or more independent factors before access is granted.&rdquo;
+          </blockquote>
+          <aside class="notes">
+            <p>MFA dramatically reduces account-compromise risk because stealing a password alone
+            is no longer sufficient to gain access.</p>
+          </aside>
+        </section>
+
+        <section>
+          <h3>The Three Factors</h3>
+          <ul>
+            <li class="fragment"><strong>Something you know</strong> &mdash; password, PIN</li>
+            <li class="fragment"><strong>Something you have</strong> &mdash; phone (SMS/TOTP), hardware key</li>
+            <li class="fragment"><strong>Something you are</strong> &mdash; fingerprint, face (biometrics)</li>
+          </ul>
+          <aside class="notes">
+            <p>Each of our three MFA methods maps to a different "have" or "are" category.</p>
+          </aside>
+        </section>
+
+        <section>
+          <h3>Why bother?</h3>
+          <ul>
+            <li class="fragment">80 % of breaches involve stolen or weak passwords</li>
+            <li class="fragment">MFA blocks 99.9 % of automated account attacks (Microsoft, 2019)</li>
+            <li class="fragment">Regulatory requirements — PCI-DSS, HIPAA, SOC 2</li>
+          </ul>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           3. THE DEMO APP
+           ============================================================ -->
+      <section class="demo-app">
+        <h2>The Demo App</h2>
+
+        <section>
+          <h3>Tech Stack</h3>
+          <ul>
+            <li class="fragment"><strong>PHP 8</strong> + <strong>Slim 4</strong> framework</li>
+            <li class="fragment"><strong>Twig</strong> templating</li>
+            <li class="fragment"><strong>Vonage PHP SDK</strong> — Verify v2 SMS</li>
+            <li class="fragment"><strong>RobThree/TwoFactorAuth</strong> — TOTP &amp; QR codes</li>
+            <li class="fragment"><strong>madwizard/webauthn</strong> — FIDO2 / passkeys</li>
+          </ul>
+          <aside class="notes">
+            <p>All wired together with PHP-DI for dependency injection and a PSR-7/PSR-15 middleware stack.</p>
+          </aside>
+        </section>
+
+        <section>
+          <h3>Route Map</h3>
+          <table class="route-table">
+            <thead>
+              <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="method method--get">GET</span>&nbsp;<span class="method method--post">POST</span></td><td>/register</td><td>Create / delete user</td></tr>
+              <tr><td><span class="method method--post">POST</span></td><td>/login</td><td>Password auth → MFA selection</td></tr>
+              <tr><td><span class="method method--post">POST</span></td><td>/start-verify</td><td>Trigger SMS OTP (Vonage)</td></tr>
+              <tr><td><span class="method method--post">POST</span></td><td>/verify-code</td><td>Check SMS OTP</td></tr>
+              <tr><td><span class="method method--get">GET</span></td><td>/register-totp</td><td>Generate TOTP secret + QR</td></tr>
+              <tr><td><span class="method method--post">POST</span></td><td>/verify-totp</td><td>Validate authenticator code</td></tr>
+              <tr><td><span class="method method--get">GET</span>&nbsp;<span class="method method--post">POST</span></td><td>/web-auth-register</td><td>WebAuthn credential creation</td></tr>
+              <tr><td><span class="method method--get">GET</span>&nbsp;<span class="method method--post">POST</span></td><td>/auth-web-auth</td><td>WebAuthn assertion</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           4. USER REGISTRATION
+           ============================================================ -->
+      <section class="registration">
+        <h2>User Registration</h2>
+
+        <section>
+          <h3>How it works</h3>
+          <div class="flow">
+            <span class="flow-step">Fill form</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">POST /register</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">Save user</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">302 → /login</span>
+          </div>
+          <p>Stores <code>username</code>, a bcrypt-hashed <code>password</code>,
+          and a <code>phone</code> number for SMS verification.</p>
+        </section>
+
+        <section>
+          <h3>RegisterRouter — createUser</h3>
+          <pre><code class="language-php" data-trim data-line-numbers="1-5|7-10|12-13">
+public function createUser(Request $request, Response $response): Response
+{
+    $body = $request->getParsedBody();
+
+    $user = new User(
+        $body['username'],
+        $body['password'],   // hashed in User::__construct
+        $body['phone']
+    );
+
+    UserService::save($user);
+
+    return $response
+        ->withStatus(302)
+        ->withHeader('Location', '/login?success='
+            . urlencode('You have been registered'));
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Live Demo &mdash; Register</h3>
+          <div class="demo-layout">
+            <div>
+              <p>Calls <code>POST /register</code> with form-encoded body.<br/>
+              On success the server redirects to <code>/login</code>.</p>
+              <pre style="font-size:0.6em"><code class="language-js" data-trim>
+const body = new URLSearchParams({ username, password, phone });
+const res  = await fetch('/api/register', {
+  method: 'POST',
+  headers: { 'Content-Type':
+    'application/x-www-form-urlencoded' },
+  body,
+  credentials: 'include',
+  redirect: 'follow',
+});
+              </code></pre>
+            </div>
+            <div class="demo-panel">
+              <h4>Register a User</h4>
+              <form id="demo-register-form" autocomplete="off">
+                <div class="demo-field">
+                  <label for="reg-username">Username</label>
+                  <input type="text" id="reg-username" name="username" placeholder="e.g. alice" />
+                </div>
+                <div class="demo-field">
+                  <label for="reg-password">Password</label>
+                  <input type="password" id="reg-password" name="password" placeholder="••••••••" />
+                </div>
+                <div class="demo-field">
+                  <label for="reg-phone">Phone (US, digits only)</label>
+                  <input type="tel" id="reg-phone" name="phone" placeholder="5551234567" />
+                </div>
+                <div class="demo-actions">
+                  <button type="submit">Register</button>
+                </div>
+              </form>
+              <div id="demo-register-result" class="demo-response"></div>
+            </div>
+          </div>
+          <aside class="notes">
+            <p>Register a user first; you'll use the same credentials in the login demo.</p>
+          </aside>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           5. LOGIN
+           ============================================================ -->
+      <section class="login">
+        <h2>Login</h2>
+
+        <section>
+          <h3>How it works</h3>
+          <div class="flow">
+            <span class="flow-step">POST /login</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">Verify password</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">302 → /mfa</span>
+          </div>
+          <p>After a successful password check the session marks the user as
+          <em>logged-in but not yet MFA-verified</em>. Protected routes check
+          both flags.</p>
+        </section>
+
+        <section>
+          <h3>LoginRouter — login</h3>
+          <pre><code class="language-php" data-trim data-line-numbers="1-4|6-8|10-15">
+public function login(Request $request, Response $response): Response
+{
+    $body     = $request->getParsedBody();
+    $username = $body['username'];
+    $password = $body['password'];
+
+    try {
+        UserService::login($username, $password);
+        return $response
+            ->withStatus(302)
+            ->withHeader('Location', '/mfa');
+
+    } catch (InvalidLoginException $e) {
+        return $response
+            ->withStatus(302)
+            ->withHeader('Location',
+                '/login?msg=' . urlencode($e->getMessage()));
+    }
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Live Demo &mdash; Login</h3>
+          <div class="demo-layout">
+            <div>
+              <p>Calls <code>POST /login</code>.<br/>
+              Success → server session is now <em>logged-in</em> and ready for MFA.</p>
+              <pre style="font-size:0.6em"><code class="language-js" data-trim>
+const res = await fetch('/api/login', {
+  method: 'POST',
+  headers: { 'Content-Type':
+    'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({ username, password }),
+  credentials: 'include',
+  redirect: 'follow',
+});
+// response.url → '/mfa' on success
+              </code></pre>
+            </div>
+            <div class="demo-panel">
+              <h4>Login</h4>
+              <form id="demo-login-form" autocomplete="off">
+                <div class="demo-field">
+                  <label for="login-username">Username</label>
+                  <input type="text" id="login-username" name="username" placeholder="e.g. alice" />
+                </div>
+                <div class="demo-field">
+                  <label for="login-password">Password</label>
+                  <input type="password" id="login-password" name="password" placeholder="••••••••" />
+                </div>
+                <div class="demo-actions">
+                  <button type="submit">Login</button>
+                </div>
+              </form>
+              <div id="demo-login-result" class="demo-response"></div>
+            </div>
+          </div>
+          <aside class="notes">
+            <p>Login first — subsequent MFA demos need an active session.</p>
+          </aside>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           6. MFA METHODS OVERVIEW
+           ============================================================ -->
+      <section class="mfa-overview">
+        <h2>Choose Your MFA Method</h2>
+        <ul>
+          <li class="fragment">
+            <strong>SMS OTP via Vonage Verify v2</strong><br/>
+            <small>Request ID → user receives code → check via API</small>
+          </li>
+          <li class="fragment">
+            <strong>TOTP (RFC 6238)</strong><br/>
+            <small>Shared secret → QR scan → time-based 6-digit codes</small>
+          </li>
+          <li class="fragment">
+            <strong>WebAuthn / Passkeys (FIDO2)</strong><br/>
+            <small>Asymmetric key pair stored in hardware or platform authenticator</small>
+          </li>
+        </ul>
+        <aside class="notes">
+          <p>All three are valid second factors. The app lets the user register for any/all of them
+          and pick one at login.</p>
+        </aside>
+      </section>
+
+
+      <!-- ============================================================
+           7. SMS VERIFY — VONAGE VERIFY v2
+           ============================================================ -->
+      <section class="sms-verify">
+        <h2>SMS OTP — Vonage Verify v2</h2>
+
+        <section>
+          <h3>How Verify v2 Works</h3>
+          <div class="flow">
+            <span class="flow-step">POST /start-verify</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">Vonage API<br/><small>returns request_id</small></span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">SMS sent<br/>to user</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">POST /verify-code<br/><small>{ requestId, code }</small></span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">Verified ✅</span>
+          </div>
+          <aside class="notes">
+            <p>The <code>request_id</code> ties the start and check calls together on the Vonage platform.</p>
+          </aside>
+        </section>
+
+        <section>
+          <h3>VerifyRouter — startVerify &amp; verifyCode</h3>
+          <pre><code class="language-php" data-trim data-line-numbers="1-7|9-13">
+// POST /start-verify
+$smsRequest = new SMSRequest($phone, getenv('BRAND'));
+$smsRequest->setTimeout(15);
+$result = $this->client->verify2()
+                       ->startVerification($smsRequest);
+
+// $result → ['request_id' => 'abc123…']
+
+// POST /verify-code  { requestId, code }
+$this->client->verify2()->check(
+    $requestBody->requestId,
+    $requestBody->code
+);
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Live Demo &mdash; SMS Verify</h3>
+          <div class="demo-layout">
+            <div>
+              <p>1. Click <strong>Start</strong> to trigger the SMS.<br/>
+              2. Enter the code you receive and click <strong>Verify</strong>.</p>
+              <pre style="font-size:0.6em"><code class="language-js" data-trim>
+// Step 1
+const { request_id } = await fetch('/api/start-verify',
+  { method: 'POST', credentials: 'include' }).then(r => r.json());
+
+// Step 2
+await fetch('/api/verify-code', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ requestId: request_id, code }),
+  credentials: 'include',
+});
+              </code></pre>
+            </div>
+            <div class="demo-panel">
+              <h4>Vonage Verify v2</h4>
+              <div class="demo-actions">
+                <button id="demo-verify-start">Start Verify</button>
+              </div>
+              <div class="demo-field" style="margin-top:0.75rem">
+                <label for="demo-verify-code">SMS Code</label>
+                <input type="text" id="demo-verify-code" placeholder="e.g. 123456" disabled />
+              </div>
+              <div class="demo-actions">
+                <button id="demo-verify-check" disabled>Verify Code</button>
+              </div>
+              <div id="demo-verify-result" class="demo-response"></div>
+            </div>
+          </div>
+          <aside class="notes">
+            <p>The request_id JSON from the Vonage platform is shown live in the response box.</p>
+          </aside>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           8. TOTP
+           ============================================================ -->
+      <section class="totp">
+        <h2>TOTP — Time-Based One-Time Passwords</h2>
+
+        <section>
+          <h3>How TOTP Works (RFC 6238)</h3>
+          <ul>
+            <li class="fragment">Server generates a random <strong>shared secret</strong></li>
+            <li class="fragment">Secret is encoded in a QR code and scanned by an authenticator app</li>
+            <li class="fragment">Both sides compute <code>HMAC-SHA1(secret, floor(time/30))</code></li>
+            <li class="fragment">Codes are valid for 30 seconds; server allows ±1 window</li>
+          </ul>
+          <aside class="notes">
+            <p>Because the server and the authenticator app share the secret, no network round-trip
+            is needed for code generation — only for verification.</p>
+          </aside>
+        </section>
+
+        <section>
+          <h3>TOTPRouter — register &amp; verify</h3>
+          <pre><code class="language-php" data-trim data-line-numbers="1-5|7-9|11-13">
+// GET /register-totp  — generate secret + QR
+$secret   = $this->tfa->createSecret();
+$user->setSecret($secret);
+UserService::save($user);
+$qrImage  = $this->tfa->getQRCodeImageAsDataUri(
+                $user->username, $secret);
+
+// POST /verify-totp  { code }
+$this->tfa->verifyCode($userSecret, $requestBody->code);
+
+// If valid → mark session as MFA-verified
+UserService::verifyUser(function () use ($userSecret, $body) {
+    $this->tfa->verifyCode($userSecret, $body->code);
+    return true;
+});
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Live Demo &mdash; TOTP</h3>
+          <div class="demo-layout">
+            <div>
+              <p>1. Click <strong>Get QR Code</strong> — scan with Google Authenticator or Authy.<br/>
+              2. Enter the 6-digit code and click <strong>Verify TOTP</strong>.</p>
+              <pre style="font-size:0.6em"><code class="language-js" data-trim>
+// GET /register-totp returns HTML; extract data-URI QR
+const html = await fetch('/api/register-totp',
+  { credentials: 'include' }).then(r => r.text());
+const img = new DOMParser()
+  .parseFromString(html, 'text/html')
+  .querySelector('img[src^="data:"]');
+
+// POST /verify-totp
+await fetch('/api/verify-totp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code }),
+  credentials: 'include',
+});
+              </code></pre>
+            </div>
+            <div class="demo-panel">
+              <h4>TOTP Setup &amp; Verify</h4>
+              <div class="demo-actions">
+                <button id="demo-totp-qr">Get QR Code</button>
+              </div>
+              <div id="demo-totp-qr-display" class="demo-qr">
+                <img id="demo-totp-qr-img" src="" alt="TOTP QR Code" />
+                <p style="font-size:0.7em;margin-top:0.4rem;opacity:0.7">
+                  Scan with Google Authenticator / Authy
+                </p>
+              </div>
+              <div class="demo-field" style="margin-top:0.75rem">
+                <label for="demo-totp-code">6-Digit Code</label>
+                <input type="text" id="demo-totp-code" placeholder="e.g. 123456" disabled maxlength="6" />
+              </div>
+              <div class="demo-actions">
+                <button id="demo-totp-verify" disabled>Verify TOTP</button>
+              </div>
+              <div id="demo-totp-result" class="demo-response"></div>
+            </div>
+          </div>
+          <aside class="notes">
+            <p>The QR code image is a base64 data-URI returned inside an HTML page — we parse
+            the DOM to extract it without a dedicated JSON endpoint.</p>
+          </aside>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           9. WEBAUTHN / PASSKEYS
+           ============================================================ -->
+      <section class="webauthn">
+        <h2>WebAuthn &mdash; Passkeys / FIDO2</h2>
+
+        <section>
+          <h3>What is WebAuthn?</h3>
+          <ul>
+            <li class="fragment"><strong>W3C standard</strong> — browser + authenticator protocol</li>
+            <li class="fragment">Authenticator creates a <strong>key pair</strong> per site</li>
+            <li class="fragment">Private key <em>never leaves</em> the device</li>
+            <li class="fragment">Server only stores the <strong>public key</strong></li>
+            <li class="fragment">Phishing-resistant by design (RP ID bound to origin)</li>
+          </ul>
+          <aside class="notes">
+            <p>WebAuthn is the underlying API; "passkeys" is the consumer-friendly name for
+            resident/discoverable credentials that sync across devices.</p>
+          </aside>
+        </section>
+
+        <section>
+          <h3>Registration &amp; Authentication Flow</h3>
+          <div class="flow" style="font-size:0.8em">
+            <span class="flow-step">GET /web-auth-register<br/><small>creation options</small></span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">navigator.credentials<br/>.create()</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">POST /web-auth-register<br/><small>attestation</small></span>
+          </div>
+          <div class="flow" style="font-size:0.8em;margin-top:1rem">
+            <span class="flow-step">GET /auth-web-auth<br/><small>request options</small></span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">navigator.credentials<br/>.get()</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">POST /auth-web-auth<br/><small>assertion</small></span>
+          </div>
+        </section>
+
+        <section>
+          <h3>WebAuthRouter — key snippets</h3>
+          <pre><code class="language-php" data-trim data-line-numbers="1-6|8-12">
+// GET /web-auth-register
+$registration = $server->startRegistration(
+    RegistrationOptions::createForUser($user));
+UserService::storeRegistrationContext(
+    $registration->getContext());
+// returns JSON creation options
+
+// POST /web-auth-register
+$result = $server->finishRegistration(
+    JsonConverter::decodeAttestation($body),
+    $context);
+UserService::saveUserCredential($credentialedUser);
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Live Demo &mdash; WebAuthn</h3>
+          <div class="demo-layout">
+            <div>
+              <p>
+                <strong>Prerequisite:</strong> HTTPS or <code>localhost</code>, and the
+                PHP app's RP ID must match the serving domain.<br/><br/>
+                1. Click <strong>Register Key</strong> — browser prompts for a passkey or hardware key.<br/>
+                2. Click <strong>Authenticate</strong> to verify.
+              </p>
+              <pre style="font-size:0.55em"><code class="language-js" data-trim>
+// Registration
+const opts = await fetch('/api/web-auth-register')
+  .then(r => r.json());
+opts.challenge = b64urlDecode(opts.challenge);
+opts.user.id  = b64urlDecode(opts.user.id);
+const creds = await navigator.credentials.create(
+  { publicKey: opts });
+await fetch('/api/web-auth-register', {
+  method: 'POST',
+  body: JSON.stringify(encodeCredential(creds)) });
+              </code></pre>
+            </div>
+            <div class="demo-panel">
+              <h4>WebAuthn / Passkeys</h4>
+              <p style="font-size:0.7em;opacity:0.7;margin-bottom:0.5rem">
+                Requires HTTPS or localhost &amp; matching RP ID
+              </p>
+              <div class="demo-actions">
+                <button id="demo-webauthn-register">Register Key</button>
+                <button id="demo-webauthn-auth" disabled>Authenticate</button>
+              </div>
+              <div id="demo-webauthn-result" class="demo-response"></div>
+            </div>
+          </div>
+          <aside class="notes">
+            <p>WebAuthn requires the Relying Party ID in WebAuthRouter to match the hostname
+            you're running on. Update the RP ID or use ngrok for a proper demo.</p>
+          </aside>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           10. SUMMARY
+           ============================================================ -->
+      <section class="summary">
+        <h2>Summary</h2>
+
+        <section>
+          <h3>Three Layers of Protection</h3>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Factor</th><th>Best for</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>SMS OTP (Vonage)</td>
+                <td>Something you have<br/><small>(phone number)</small></td>
+                <td>Quick setup, wide reach</td>
+              </tr>
+              <tr>
+                <td>TOTP</td>
+                <td>Something you have<br/><small>(authenticator app)</small></td>
+                <td>Offline, no carrier dependency</td>
+              </tr>
+              <tr>
+                <td>WebAuthn</td>
+                <td>Something you have/are<br/><small>(device / biometric)</small></td>
+                <td>Strongest, phishing-resistant</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h3>Key Takeaways</h3>
+          <ul>
+            <li class="fragment">MFA is table stakes for any user-facing application</li>
+            <li class="fragment">Vonage Verify v2 gets you SMS OTP in &lt; 10 lines of PHP</li>
+            <li class="fragment">TOTP works offline and needs no external API at verify time</li>
+            <li class="fragment">WebAuthn is the future — phishing-proof and passwordless</li>
+            <li class="fragment">Offer <em>multiple</em> factors and let users choose</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>Resources</h3>
+          <ul>
+            <li>
+              <a href="https://github.com/Vonage-Community/demo-verify-php-with-mfa">
+                github.com/Vonage-Community/demo-verify-php-with-mfa
+              </a>
+            </li>
+            <li>
+              <a href="https://developer.vonage.com/en/verify/overview">
+                developer.vonage.com — Verify v2 docs
+              </a>
+            </li>
+            <li>
+              <a href="https://webauthn.guide">webauthn.guide</a>
+            </li>
+            <li>
+              <a href="https://github.com/RobThree/TwoFactorAuth">
+                github.com/RobThree/TwoFactorAuth
+              </a>
+            </li>
+          </ul>
+        </section>
+      </section>
+
+
+      <!-- ============================================================
+           11. Q & A
+           ============================================================ -->
+      <section class="q-and-a">
+        <h2>You&rsquo;ve got Q&rsquo;s?</h2>
+        <h2>I&rsquo;ve got A&rsquo;s.</h2>
+      </section>
+
+
+      <!-- ============================================================
+           12. THANK YOU
+           ============================================================ -->
+      <section class="thanks">
+        <h2>Thanks for Attending!</h2>
+        <h3 style="text-transform:none;font-weight:300">@manchuck</h3>
+      </section>
+
+    </div>
+  </div>
+
+  <script type="module">
+    import 'reveal.js/reveal.css';
+    import 'reveal.js/plugin/highlight/monokai.css';
+    import Reveal from 'reveal.js';
+    import Highlight from 'reveal.js/plugin/highlight';
+    import Notes from 'reveal.js/plugin/notes';
+    import './js/mfa-demo.js';
+
+    Reveal.initialize({
+      hash: true,
+      controls: true,
+      progress: true,
+      transition: 'fade',
+      transitionSpeed: 'slow',
+      plugins: [Highlight, Notes],
+    });
+  </script>
+</body>
+
+</html>
